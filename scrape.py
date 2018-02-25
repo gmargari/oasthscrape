@@ -8,6 +8,7 @@ import argparse
 import random
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
+import codecs
 
 DEFAULT_BUS_NAME = '10'
 DEFAULT_BUS_STOP_NAME = 'ΠΛΑΤΕΙΑ ΑΡΙΣΤΟΤΕΛΟΥΣ'
@@ -36,6 +37,21 @@ class OasthArrivalsScraper:
         self.browser.get('http://m.oasth.gr')
 
         self.curdate = time.strftime('%Y.%m.%d_%H.%M.%S')
+
+    #==========================================================================
+    # __enter__ ()
+    #==========================================================================
+    def __enter__(self):
+        self.output_file = None
+        return self
+
+    #==========================================================================
+    # __exit__ ()
+    #==========================================================================
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.output_file:
+            self.output_file.close()
+
 
     #==========================================================================
     # scrape_arrival_times ()
@@ -77,7 +93,7 @@ class OasthArrivalsScraper:
             print('Unknown file type "%s"' % (file_type))
             sys.exit(1)
 
-        self.output_file = open(output_filename, 'w')
+        self.output_file = codecs.open(output_filename, 'w', 'utf-8')
         print('Output file: %s' % (output_filename))
 
     #==========================================================================
@@ -223,16 +239,15 @@ class OasthArrivalsScraper:
     #==========================================================================
     def print_timetables(self, day_type):
         print('=== %s ===' % (day_type))
-#        print('=== %s ===' % (day_type), file=self.output_file)
+        print('=== %s ===' % (day_type), file=self.output_file)
 
         elems = self.get_menu_options()
         for elem in elems:
             print(elem.text)
-#            print(elem.text, file=self.output_file)
+            print(elem.text, file=self.output_file)
 
 #        time.sleep(random.randint(min_sec, max_sec))
 #        self.arrivals_bus_page_click_stop(self.bus_stop_name)
-
 
 #===============================================================================
 # create_arg_parser ()
@@ -266,11 +281,11 @@ def main():
         bus_name = args.bus_name
 
     # Scrape page
-    scraper = OasthArrivalsScraper()
-    if operation == 'arrivals':
-        scraper.scrape_arrival_times(bus_name, bus_stop)
-    elif operation == 'timetables':
-        scraper.scrape_timetables(bus_name)
+    with OasthArrivalsScraper() as scraper:
+      if operation == 'arrivals':
+          scraper.scrape_arrival_times(bus_name, bus_stop)
+      elif operation == 'timetables':
+          scraper.scrape_timetables(bus_name)
 
 if __name__ == "__main__":
     main()

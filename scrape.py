@@ -51,7 +51,7 @@ class OasthArrivalsScraper:
     def __exit__(self, exc_type, exc_value, traceback):
         if self.output_file:
             self.output_file.close()
-
+        self.browser.close()
 
     #==========================================================================
     # scrape_arrival_times ()
@@ -239,15 +239,11 @@ class OasthArrivalsScraper:
     #==========================================================================
     def print_timetables(self, day_type):
         print('=== %s ===' % (day_type))
-        print('=== %s ===' % (day_type), file=self.output_file)
+        print('%s ' % (day_type), file=self.output_file, end='')
 
         elems = self.get_menu_options()
-        for elem in elems:
-            print(elem.text)
-            print(elem.text, file=self.output_file)
-
-#        time.sleep(random.randint(min_sec, max_sec))
-#        self.arrivals_bus_page_click_stop(self.bus_stop_name)
+        print('%s' % '\n'.join([ e.text for e in elems]))
+        print('%s' % ' '.join([ e.text for e in elems]), file=self.output_file)
 
 #===============================================================================
 # create_arg_parser ()

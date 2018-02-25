@@ -223,12 +223,12 @@ class OasthArrivalsScraper:
     #==========================================================================
     def print_timetables(self, day_type):
         print('=== %s ===' % (day_type))
-        print('=== %s ===' % (day_type), file=self.output_file)
+#        print('=== %s ===' % (day_type), file=self.output_file)
 
         elems = self.get_menu_options()
         for elem in elems:
             print(elem.text)
-            print(elem.text, file=self.output_file)
+#            print(elem.text, file=self.output_file)
 
 #        time.sleep(random.randint(min_sec, max_sec))
 #        self.arrivals_bus_page_click_stop(self.bus_stop_name)
@@ -270,7 +270,6 @@ def main():
     if operation == 'arrivals':
         scraper.scrape_arrival_times(bus_name, bus_stop)
     elif operation == 'timetables':
-        scraper = OasthArrivalsScraper()
         scraper.scrape_timetables(bus_name)
 
 if __name__ == "__main__":

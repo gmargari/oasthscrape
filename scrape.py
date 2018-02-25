@@ -21,11 +21,11 @@ class OasthArrivalsScraper:
     #==========================================================================
     def __init__(self):
         self.arrivals_option_name = 'Αφίξεις Γραμμών'
-#        self.bus_name = random.choice([ '02', '08', '10', '11', '14', '17', '27', '31' ]) # aristotelous apo egnatia
-        self.bus_name = random.choice([ '03', '05', '06', '12', '33', '39', '58', '78' ]) # aristotelous apo tsimiski
-#        self.bus_name = random.choice([ '02', '08', '10', '11', ]) # aristotelous apo egnatia
+        self.bus_name = random.choice([ '02', '08', '10', '11', '14', '17', '27', '31' ]) # aristotelous apo egnatia
+#        self.bus_name = random.choice([ '03', '05', '06', '12', '33', '39', '58', '78' ]) # aristotelous apo tsimiski
+#        self.bus_name = random.choice([ '02', '08', '10', '11', '14', '31' ]) # aristotelous apo egnatia
         self.bus_stop_name = 'ΠΛΑΤΕΙΑ ΑΡΙΣΤΟΤΕΛΟΥΣ'
-        self.printing_interval = 1
+        self.printing_interval = 20
 
         print('bus: %s' % self.bus_name)
 
@@ -34,9 +34,6 @@ class OasthArrivalsScraper:
         #self.browser = webdriver.Firefox()
         self.browser = webdriver.Chrome()
         self.browser.get('http://m.oasth.gr')
-
-        output_filename = time.strftime('%Y.%m.%d-%H.%M.%S')
-        self.output_file = open(output_filename, 'w')
 
     #==========================================================================
     # scrape ()
@@ -56,6 +53,15 @@ class OasthArrivalsScraper:
         self.arrivals_bus_page_click_stop(self.bus_stop_name)
 
         time.sleep(random.randint(min_sec, max_sec))
+
+        if self.no_results_in_page():
+            print('No results in page. Please try again.')
+            self.browser.close()
+            sys.exit(1)
+
+        output_filename = time.strftime('%Y.%m.%d-%H.%M.%S') + '.txt'
+        print('Output file: %s' % (output_filename))
+        self.output_file = open(output_filename, 'w')
 
         while True:
             self.print_arrival_times()
@@ -156,6 +162,15 @@ class OasthArrivalsScraper:
 
         self.output_file.flush()
 
+
+    #==========================================================================
+    # no_results_in_page ()
+    #==========================================================================
+    def no_results_in_page(self):
+        if len(self.browser.find_elements_by_xpath('//*[@class="err"]')) > 0:
+            return True
+
+        return False
 
 s = OasthArrivalsScraper()
 s.scrape()

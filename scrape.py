@@ -53,16 +53,9 @@ class OasthArrivalsScraper:
         self.output_file = None
 
     #==========================================================================
-    # __enter__ ()
+    # __del__ ()
     #==========================================================================
-    def __enter__(self):
-        self.output_file = None
-        return self
-
-    #==========================================================================
-    # __exit__ ()
-    #==========================================================================
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __del__(self):
         if self.output_file:
             self.output_file.close()
         if self.browser:
@@ -72,29 +65,25 @@ class OasthArrivalsScraper:
     # scrape_arrival_times ()
     #==========================================================================
     def scrape_arrival_times(self, operation, bus_name, bus_stop_name):
+        self.operation = operation
         self.bus_name = bus_name
         self.bus_stop_name = bus_stop_name
 
         time.sleep(random.randint(min_sec, max_sec))
-        if operation == 'buses_arrivals':
+        if self.operation == 'buses_arrivals':
             self.menu_page_click_link(self.buses_arrival_times_option_name)
-        elif operation == 'bus_arrivals':
+        elif self.operation == 'bus_arrivals':
             self.menu_page_click_link(self.bus_arrival_times_option_name)
         else:
-            raise ValueError('Invalid option "%s"' % operation)
+            raise ValueError('Invalid option "%s"' % self.operation)
 
-        time.sleep(random.randint(min_sec, max_sec))
         self.bus_selection_page_click_bus(self.bus_name)
 
-        time.sleep(random.randint(min_sec, max_sec))
         self.arrivals_bus_page_click_stop(self.bus_stop_name)
 
-        time.sleep(random.randint(min_sec, max_sec))
 #        if self.err_in_page():
 #            print('No results in page. Please try again.')
 #            sys.exit(1)
-
-        self.open_output_file(operation)
 
         while True:
             self.print_arrival_times(operation)
@@ -103,16 +92,21 @@ class OasthArrivalsScraper:
     #==========================================================================
     # open_output_file ()
     #==========================================================================
-    def open_output_file(self, operation):
-        if 'arrivals' in operation:
-            output_filename = '%s-%s-%s-%s.txt' % (operation, self.bus_name.replace(' ','_'), self.bus_stop_name.replace(' ','_'), self.curdate)
-        elif operation == 'timetables':
-            output_filename = '%s-%s.txt' % (operation, self.bus_name.replace(' ','_') )
+    def open_output_file(self):
+        header = "# Filetype: %s\n" % self.operation
+        if 'arrivals' in self.operation:
+            filename = '%s-%s-%s-%s.txt' % (self.operation, self.bus_name.replace(' ','_'), self.bus_stop_name.replace(' ','_'), self.curdate)
+            header += "# Bus: %s\n" % self.bus_name
+            header += "# Stop: %s\n" % self.bus_stop
+        elif self.operation == 'timetables':
+            filename = '%s-%s.txt' % (self.operation, self.bus_name.replace(' ','_'))
+            header += "# Bus: %s\n" % self.bus_name
         else:
             raise ValueError('Invalid option "%s"' % file_type)
 
-        self.output_file = codecs.open(output_filename, 'w', 'utf-8')
-        print('Output file: %s' % (output_filename))
+        self.output_file = codecs.open(filename, 'w', 'utf-8')
+        print(header, file=self.output_file, end='')
+        print('Output file: %s' % (filename))
 
     #==========================================================================
     # menu_page_click_link ()
@@ -154,6 +148,8 @@ class OasthArrivalsScraper:
                 found_elem = elem.find_element_by_xpath(xpath_copy)
                 if found_elem:
                     found_elem.click()
+                    # Wait a bit for the link to load
+                    time.sleep(random.randint(min_sec, max_sec))
                     return
 
             except (NoSuchElementException):
@@ -183,6 +179,9 @@ class OasthArrivalsScraper:
     # print_arrival_times ()
     #==========================================================================
     def print_arrival_times(self, operation):
+        if not self.output_file:
+          self.open_output_file()
+
         tuples = []
         elems = self.get_menu_options()
         for elem in elems:
@@ -226,43 +225,28 @@ class OasthArrivalsScraper:
         return tuple
 
     #==========================================================================
-    # err_in_page ()
-    #==========================================================================
-    def err_in_page(self):
-        if len(self.browser.find_elements_by_xpath('//*[@class="err"]')) > 0:
-            return True
-
-        return False
-
-    #==========================================================================
     # scrape_timetables ()
     #==========================================================================
-    def scrape_timetables(self, bus_name):
+    def scrape_timetables(self, operation, bus_name):
+        self.operation = operation
         self.bus_name = bus_name
 
-#        time.sleep(random.randint(min_sec, max_sec))
         self.menu_page_click_link(self.timetables_option_name)
-
-        time.sleep(random.randint(min_sec, max_sec))
         self.bus_selection_page_click_bus(self.bus_name)
 
-        self.open_output_file('timetables')
-
-        time.sleep(random.randint(min_sec, max_sec))
         elems = self.get_menu_options()
         for day_type in [ e.text for e in elems ]:
-            time.sleep(random.randint(min_sec, max_sec))
             self.timetable_day_type_page_click_type(day_type)
-
-            time.sleep(random.randint(min_sec, max_sec))
             self.print_timetables(day_type)
-
             self.browser.back()
 
     #==========================================================================
     # print_timetables ()
     #==========================================================================
     def print_timetables(self, day_type):
+        if not self.output_file:
+          self.open_output_file()
+
         elems = self.get_menu_options()
 
         print('=== %s ===' % (day_type))
@@ -270,6 +254,15 @@ class OasthArrivalsScraper:
 
         print('%s' % '\n'.join([ e.text for e in elems]))
         print('%s' % ' '.join([ e.text for e in elems]), file=self.output_file)
+
+    #==========================================================================
+    # err_in_page ()
+    #==========================================================================
+    def err_in_page(self):
+        if len(self.browser.find_elements_by_xpath('//*[@class="err"]')) > 0:
+            return True
+
+        return False
 
 #===============================================================================
 # create_arg_parser ()
@@ -296,18 +289,18 @@ def main():
     # Parse arguments
     args = parser.parse_args()
     operation = args.o
-    if operation == 'buses_arrivals' or operation == 'bus_arrivals':
+    if 'arrivals' in operation:
         bus_name = args.bus_name
         bus_stop = args.bus_stop
     elif operation == 'timetables':
         bus_name = args.bus_name
 
     # Scrape page
-    with OasthArrivalsScraper() as scraper:
-      if operation == 'buses_arrivals' or operation == 'bus_arrivals':
-          scraper.scrape_arrival_times(operation, bus_name, bus_stop)
-      elif operation == 'timetables':
-          scraper.scrape_timetables(bus_name)
+    scraper = OasthArrivalsScraper()
+    if 'arrivals' in operation:
+        scraper.scrape_arrival_times(operation, bus_name, bus_stop)
+    elif operation == 'timetables':
+        scraper.scrape_timetables(operation, bus_name)
 
 if __name__ == "__main__":
     main()

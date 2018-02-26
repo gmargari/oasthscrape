@@ -24,12 +24,6 @@ def replace_white_spaces_with_single_space(s):
     return ' '.join(s.split())
 
 #==============================================================================
-# flatten_list_of_lists ()
-#==============================================================================
-def flatten_list_of_lists(l):
-    return [item for sublist in l for item in sublist]
-
-#==============================================================================
 # OasthArrivalsScraper ()
 #==============================================================================
 class OasthArrivalsScraper:
@@ -86,27 +80,8 @@ class OasthArrivalsScraper:
 #            sys.exit(1)
 
         while True:
-            self.print_arrival_times(operation)
+            self.print_page_elements(operation)
             time.sleep(self.printing_interval)
-
-    #==========================================================================
-    # open_output_file ()
-    #==========================================================================
-    def open_output_file(self):
-        header = "# Filetype: %s\n" % self.operation
-        if 'arrivals' in self.operation:
-            filename = '%s-%s-%s-%s.txt' % (self.operation, self.bus_name.replace(' ','_'), self.bus_stop_name.replace(' ','_'), self.curdate)
-            header += "# Bus: %s\n" % self.bus_name
-            header += "# Stop: %s\n" % self.bus_stop
-        elif self.operation == 'timetables':
-            filename = '%s-%s.txt' % (self.operation, self.bus_name.replace(' ','_'))
-            header += "# Bus: %s\n" % self.bus_name
-        else:
-            raise ValueError('Invalid option "%s"' % file_type)
-
-        self.output_file = codecs.open(filename, 'w', 'utf-8')
-        print(header, file=self.output_file, end='')
-        print('Output file: %s' % (filename))
 
     #==========================================================================
     # menu_page_click_link ()
@@ -176,9 +151,28 @@ class OasthArrivalsScraper:
         return elems
 
     #==========================================================================
-    # print_arrival_times ()
+    # open_output_file ()
     #==========================================================================
-    def print_arrival_times(self, operation):
+    def open_output_file(self):
+        header = "# Filetype: %s\n" % self.operation
+        if 'arrivals' in self.operation:
+            filename = '%s-%s-%s-%s.txt' % (self.operation, self.bus_name.replace(' ','_'), self.bus_stop_name.replace(' ','_'), self.curdate)
+            header += "# Bus: %s\n" % self.bus_name
+            header += "# Stop: %s\n" % self.bus_stop_name
+        elif self.operation == 'timetables':
+            filename = '%s-%s.txt' % (self.operation, self.bus_name.replace(' ','_'))
+            header += "# Bus: %s\n" % self.bus_name
+        else:
+            raise ValueError('Invalid option "%s"' % file_type)
+
+        self.output_file = codecs.open(filename, 'w', 'utf-8')
+        print(header, file=self.output_file, end='')
+        print('Output file: %s' % (filename))
+
+    #==========================================================================
+    # print_page_elements ()
+    #==========================================================================
+    def print_page_elements(self, operation):
         if not self.output_file:
           self.open_output_file()
 
@@ -194,14 +188,24 @@ class OasthArrivalsScraper:
                 time.sleep(random.randint(min_sec, max_sec))
                 return
 
-        timestamp = int(time.time())
-        for tuple in tuples:
-            print("%d,%s" % (timestamp, ','.join(tuple)), file=self.output_file)
-            print(time.strftime('%d-%m-%Y %H:%M:%S : '), end='')
-            print("%s" % ' - '.join(tuple))
+        if 'arrivals' in operation:
+            timestamp = int(time.time())
+            for tuple in tuples:
+                print("%d,%s" % (timestamp, ','.join(tuple)), file=self.output_file)
 
-        if len(tuples):
-            print('')
+                print(time.strftime('%d-%m-%Y %H:%M:%S : '), end='')
+                print("%s" % ' - '.join(tuple))
+
+            if len(tuples):
+                print('')
+        elif operation == 'timetables':
+            print('%s: ' % self.day_type, file=self.output_file, end='')
+            print('%s' % ','.join([ ','.join(tuple) for tuple in tuples ]), file=self.output_file)
+
+            print('=== %s ===' % self.day_type)
+            print('%s' % '\n'.join([ ' '.join(tuple) for tuple in tuples ]))
+        else:
+            raise ValueError('Invalid option %s' % operation)
 
         self.output_file.flush()
 
@@ -219,6 +223,9 @@ class OasthArrivalsScraper:
             # "0781 ΑΦΙΞΗ ΣΕ 6'" => ["0781", "6"]
             [vehicle_no, minutes] = [ v.strip(" '") for v in s.split(u'ΑΦΙΞΗ ΣΕ') ]
             tuple = [vehicle_no, minutes]
+        elif operation == 'timetables':
+            # "07:05 07:20 07:30" => ["07:05", "07:20", "07:30"]
+            tuple = [ v.strip() for v in s.split() ]
         else:
             raise ValueError('Invalid option %s' % operation)
 
@@ -236,24 +243,10 @@ class OasthArrivalsScraper:
 
         elems = self.get_menu_options()
         for day_type in [ e.text for e in elems ]:
-            self.timetable_day_type_page_click_type(day_type)
-            self.print_timetables(day_type)
+            self.day_type = day_type
+            self.timetable_day_type_page_click_type(self.day_type)
+            self.print_page_elements(operation)
             self.browser.back()
-
-    #==========================================================================
-    # print_timetables ()
-    #==========================================================================
-    def print_timetables(self, day_type):
-        if not self.output_file:
-          self.open_output_file()
-
-        elems = self.get_menu_options()
-
-        print('=== %s ===' % (day_type))
-        print('%s ' % (day_type), file=self.output_file, end='')
-
-        print('%s' % '\n'.join([ e.text for e in elems]))
-        print('%s' % ' '.join([ e.text for e in elems]), file=self.output_file)
 
     #==========================================================================
     # err_in_page ()
@@ -271,8 +264,8 @@ def create_arg_parser():
     formatter = lambda prog: argparse.ArgumentDefaultsHelpFormatter(prog, max_help_position=100, width=200)
     parser = argparse.ArgumentParser(formatter_class=formatter)
     parser.add_argument('o', metavar='OPERATION', help='Options: %s' % ', '.join(SCRAPE_TYPES), choices=SCRAPE_TYPES, type=str)
-    parser.add_argument('-b', '--bus_name', metavar='BUS_NAME', help="Bus name", default=DEFAULT_BUS_NAME, type=str)
-    parser.add_argument('-s', '--bus_stop', metavar='BUS_STOP', help="Bus stop", default=DEFAULT_BUS_STOP_NAME, type=str)
+    parser.add_argument('-b', '--bus_name', metavar='BUS_NAME', help="Bus name", default=DEFAULT_BUS_NAME, type=lambda s: unicode(s, 'utf8'))
+    parser.add_argument('-s', '--bus_stop', metavar='BUS_STOP', help="Bus stop", default=DEFAULT_BUS_STOP_NAME, type=lambda s: unicode(s, 'utf8'))
 
     return parser
 

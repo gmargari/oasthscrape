@@ -14,8 +14,8 @@ DEFAULT_BUS_NAME = '10'
 DEFAULT_BUS_STOP_NAME = 'ΠΛΑΤΕΙΑ ΑΡΙΣΤΟΤΕΛΟΥΣ'
 SCRAPE_TYPES = ['buses_arrivals', 'bus_arrivals', 'timetables']
 
-min_sec = 1
-max_sec = 1
+min_sec = 0.1
+max_sec = 0.1
 
 #==============================================================================
 # replace_white_spaces_with_single_space ()
@@ -63,7 +63,7 @@ class OasthArrivalsScraper:
         self.bus_name = bus_name
         self.bus_stop_name = bus_stop_name
 
-        time.sleep(random.randint(min_sec, max_sec))
+        time.sleep(random.uniform(min_sec, max_sec))
         if self.operation == 'buses_arrivals':
             self.menu_page_click_link(self.buses_arrival_times_option_name)
         elif self.operation == 'bus_arrivals':
@@ -124,7 +124,7 @@ class OasthArrivalsScraper:
                 if found_elem:
                     found_elem.click()
                     # Wait a bit for the link to load
-                    time.sleep(random.randint(min_sec, max_sec))
+                    time.sleep(random.uniform(min_sec, max_sec))
                     return
 
             except (NoSuchElementException):
@@ -185,7 +185,7 @@ class OasthArrivalsScraper:
                 tuples.append(tuple)
             except (StaleElementReferenceException):
                 print('Stale element exception, will retry in next interval')
-                time.sleep(random.randint(min_sec, max_sec))
+                time.sleep(random.uniform(min_sec, max_sec))
                 return
 
         if 'arrivals' in operation:
@@ -199,7 +199,7 @@ class OasthArrivalsScraper:
             if len(tuples):
                 print('')
         elif operation == 'timetables':
-            print('%s: ' % self.day_type, file=self.output_file, end='')
+            print('%s,' % self.day_type, file=self.output_file, end='')
             print('%s' % ','.join([ ','.join(tuple) for tuple in tuples ]), file=self.output_file)
 
             print('=== %s ===' % self.day_type)
